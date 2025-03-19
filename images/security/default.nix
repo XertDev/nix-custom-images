@@ -1,0 +1,4 @@
+{ callPackage, ... }:
+{
+	authelia = callPackage ./authelia {};
+}

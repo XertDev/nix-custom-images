@@ -25,23 +25,14 @@
 			let
         internal = import ./internal { inherit lib; inherit pkgs; };
         inherit (internal) mkImage;
+
+        callPackage = pkgs.lib.callPackageWith (pkgs // {
+          inherit callPackage;
+          inherit mkImage;
+        });
       in
       {
-				images = {
-					hello = {
-					  default = mkImage {
-					    options = {
-					    };
-
-					    image = { ... }: {
-					      name = "hello";
-					      config = {
-					        Cmd = [ "${pkgs.hello}/bin/hello" ];
-					      };
-					    };
-					  };
-					};
-				};
+				images = callPackage ./images { };
 			};
 		};
 }

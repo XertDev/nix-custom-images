@@ -1,0 +1,4 @@
+{ callPackage, ... }:
+{
+	hello = callPackage ./hello {};
+}

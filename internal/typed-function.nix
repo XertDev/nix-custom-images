@@ -4,7 +4,7 @@ definition: args:
 		options = definition.options or {};
 		function = definition.function;
 
-		evaluatedConfig = lib.debug.traceVal lib.evalModules {
+		evaluatedConfig = lib.evalModules {
 			modules = [
 				{ inherit options; }
 				args
@@ -13,4 +13,4 @@ definition: args:
 				}
 			];
 		};
-	in function { config = evaluatedConfig; }
+	in function { inherit (evaluatedConfig) config; }
