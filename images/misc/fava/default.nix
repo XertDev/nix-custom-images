@@ -4,31 +4,31 @@
 		options = with lib; {
 			package = mkPackageOption pkgs "fava" {};
 
-	    uid = mkOption {
-        default = 1000;
-        type = types.int;
-        description = "UID for fava";
-      };
-      gid = mkOption {
-        default = 1000;
-        type = types.int;
-        description = "GID for fava";
-      };
+			uid = mkOption {
+				default = 1000;
+				type = types.int;
+				description = "UID for fava";
+			};
+			gid = mkOption {
+				default = 1000;
+				type = types.int;
+				description = "GID for fava";
+			};
 
-      port = mkOption {
-        type = types.port;
-        default = 5000;
-        description = ''
-          Port for web interface
-        '';
-      };
-      bind = mkOption {
-        type = types.str;
-        default = "0.0.0.0";
-        description = ''
-          The address to which the service should bind.
-        '';
-      };
+			port = mkOption {
+				type = types.port;
+				default = 5000;
+				description = ''
+					Port for web interface
+				'';
+			};
+			bind = mkOption {
+				type = types.str;
+				default = "0.0.0.0";
+				description = ''
+					The address to which the service should bind.
+				'';
+			};
 
 			ledgerFile = mkOption {
 				type = types.path;
@@ -50,13 +50,13 @@
 					config.package
 				];
 				text = ''
-          if [ ! -f '${config.ledgerFile}' ]; then
-            echo 'Creating initial ledger file: ${config.ledgerFile}';
-            touch '${config.ledgerFile}';
-          fi
+					if [ ! -f '${config.ledgerFile}' ]; then
+						echo 'Creating initial ledger file: ${config.ledgerFile}';
+						touch '${config.ledgerFile}';
+					fi
 
-          echo 'Starting fava'
-          fava ${config.ledgerFile} --host ${config.bind} --port ${(builtins.toString config.port)}
+					echo 'Starting fava'
+					fava ${config.ledgerFile} --host ${config.bind} --port ${(builtins.toString config.port)}
 				'';
 			};
 
@@ -66,11 +66,11 @@
 			name = "fava";
 			tag = "${config.package.version}-${fullConfigHash}";
 
-      enableFakechroot = true;
+			enableFakechroot = true;
 			fakeRootCommands = ''
 					DATA_DIR=$(dirname '${config.ledgerFile}')
-          mkdir -p "$DATA_DIR"
-          chown -R "${UIDGID}" "$DATA_DIR"
+					mkdir -p "$DATA_DIR"
+					chown -R "${UIDGID}" "$DATA_DIR"
 			'';
 
 			config = {
