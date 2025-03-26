@@ -2,5 +2,5 @@
 {
 	hello = callPackage ./hello {};
 	fava = callPackage ./fava {};
-	homepage-dashboard = ./homepage-dashboard {};
+	homepage-dashboard = callPackage ./homepage-dashboard {};
 }
