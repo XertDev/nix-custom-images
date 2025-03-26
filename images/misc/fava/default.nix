@@ -74,7 +74,7 @@
 			'';
 
 			config = {
-				Entrypoint = pkgs.lib.meta.getExe initScript;
+				Entrypoint = [ (pkgs.lib.meta.getExe initScript) ];
 				User = "${toString config.uid}:${toString config.gid}";
 			};
 		};

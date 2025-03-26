@@ -131,7 +131,7 @@ in
 
 					"SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 				];
-				Entrypoint = pkgs.lib.meta.getExe config.package;
+				Entrypoint = [ (pkgs.lib.meta.getExe config.package) ];
 				User = UIDGID;
 			};
 		};
