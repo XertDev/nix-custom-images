@@ -10,12 +10,12 @@ in
 			uid = mkOption {
 				default = 1000;
 				type = types.int;
-				description = "UID for fava";
+				description = "UID for homepage-dashboard";
 			};
 			gid = mkOption {
 				default = 1000;
 				type = types.int;
-				description = "GID for fava";
+				description = "GID for homepage-dashboard";
 			};
 
 			port = mkOption {
