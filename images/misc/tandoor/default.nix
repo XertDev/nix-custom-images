@@ -29,11 +29,25 @@
 					The address to which the service should bind.
 				'';
 			};
+
+			extraConfig = mkOption {
+				type = types.attrs;
+				default = {};
+				description = ''
+					Additional tandoor configuration.
+					Passed as env variables.
+				'';
+			};
 		};
 
 		image = { config, ... }: let
 			UIDGID = "${toString config.uid}:${toString config.gid}";
-			fullConfigHash = builtins.hashString "md5" "${toString config.port}${config.bind}";
+
+			extraConfigEnvs = lib.attrsets.mapAttrsToList
+				(key: val: "${key}=${toString val}") config.extraConfig;
+			extraConfigForHash = lib.strings.concatStrings extraConfigEnvs;
+
+			fullConfigHash = builtins.hashString "md5" "${extraConfigForHash}${toString config.port}${config.bind}";
 
 			pkg = config.package;
 
@@ -72,7 +86,7 @@
 					"DEBUG_TOOLBAR=0"
 					"MEDIA_ROOT=${mediaRoot}"
 					"PYTHONPATH=${pkg.python.pkgs.makePythonPath pkg.propagatedBuildInputs}:${pkg}/lib/tandoor-recipes"
-				];
+				] ++ extraConfigEnvs;
 
 				Entrypoint = [ (pkgs.lib.meta.getExe initScript) ];
 				WorkingDir = mediaRoot;
