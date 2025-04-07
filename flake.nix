@@ -9,6 +9,11 @@
 				nixpkgs-lib.follows = "nixpkgs";
 			};
 		};
+
+		nix-snapshotter = {
+			url = "github:pdtpartners/nix-snapshotter";
+			inputs.nixpkgs.follows = "nixpkgs";
+		};
 	};
 
 	outputs = inputs@{ nixpkgs, flake-parts, ... }:

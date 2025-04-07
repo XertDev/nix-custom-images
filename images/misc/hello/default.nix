@@ -1,14 +1,18 @@
-{ pkgs, mkImage, ... }:
+{ pkgs, lib, mkImage, ... }:
 {
 	default = mkImage {
-	  options = {
-	  };
+		supportSnapshotter = true;
 
-	  image = { ... }: {
-	    name = "hello";
-	    config = {
-	      Cmd = [ "${pkgs.hello}/bin/hello" ];
-	    };
-	  };
+		options = with lib; {
+			package = mkPackageOption pkgs "hello" {};
+		};
+
+		image = { config, ... }: {
+			name = "hello";
+			tag = "latest";
+			config = {
+				Cmd = [ (pkgs.lib.meta.getExe config.package) ];
+			};
+		};
 	};
 }
