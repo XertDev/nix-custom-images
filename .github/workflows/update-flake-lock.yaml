@@ -1,0 +1,32 @@
+name: "Update flake.lock"
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 0 12 * * *
+jobs:
+  update-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update lock
+        run: nix flake update
+      - name: Create Pull Request
+        id: pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          title: "Flake lock updated"
+          branch: automatic/lock-update
+          commit-message: |
+            Flake lock updated
+          body: |
+            Automatic flake lock update
+          labels: |
+            ci-cd
+      - name: Check outputs
+        if: ${{ steps.pr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.pr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.pr.outputs.pull-request-url }}"
