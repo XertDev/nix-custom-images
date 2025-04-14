@@ -35,9 +35,15 @@
           inherit callPackage;
           inherit mkImage;
         });
+
+        images = callPackage ./images { };
+        image-build-check = pkgs.callPackage ./tests { inherit images; };
       in
       {
-				images = callPackage ./images { };
+				inherit images;
+				checks = {
+					inherit image-build-check;
+				};
 			};
 		};
 }
