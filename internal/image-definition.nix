@@ -2,7 +2,7 @@
 let
 	mkTypedFunction = import ./typed-function.nix { inherit lib; };
 in
-definition: args:
+definition:
 	let
 		userOptions = definition.options;
 		defaultOptions = with lib; {
@@ -21,16 +21,22 @@ definition: args:
 					useSnapshotter;
 			};
 		};
+	in {
+		inherit (functionDef) options;
+		builder = args:
+			let
+				evaluatedImageDefinition = mkTypedFunction functionDef args;
 
-		evaluatedImageDefinition = mkTypedFunction functionDef args;
+        supportSnapshotter = lib.attrsets.attrByPath ["supportSnapshotter"] false definition;
+        useSnapshotter = assert
+          lib.asserts.assertMsg (!evaluatedImageDefinition.useSnapshotter || supportSnapshotter)
+          "Option \"useSnapshotter\" is not supported for selected image";
+          evaluatedImageDefinition.useSnapshotter;
 
-		supportSnapshotter = lib.attrsets.attrByPath ["supportSnapshotter"] false definition;
-		useSnapshotter = assert
-			lib.asserts.assertMsg (!evaluatedImageDefinition.useSnapshotter || supportSnapshotter)
-			"Option \"useSnapshotter\" is not supported for selected image";
-			evaluatedImageDefinition.useSnapshotter;
+        builder = if useSnapshotter
+          then pkgs.nix-snapshotter.buildImage
+          else pkgs.dockerTools.streamLayeredImage;
+			in builder (evaluatedImageDefinition.resolvedImage);
+	}
 
-		builder = if useSnapshotter
-			then pkgs.nix-snapshotter.buildImage
-			else pkgs.dockerTools.streamLayeredImage;
-	in builder (evaluatedImageDefinition.resolvedImage)
+

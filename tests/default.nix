@@ -38,7 +38,7 @@ pkgs.runCommand "image-build-check" {
 			lib.strings.concatStringsSep "\n" (
 				map (val:
 					''
-						echo "${lib.concatStringsSep "." val.path} -> ${(lib.attrsets.getAttrFromPath val.path images) val.args}"
+						echo "${lib.strings.concatStringsSep "." val.path} -> ${(lib.attrsets.getAttrFromPath val.path images) val.args}"
 					''
 				) subtypeFunctions
 			)

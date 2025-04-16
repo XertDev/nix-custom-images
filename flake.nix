@@ -36,7 +36,10 @@
           inherit mkImage;
         });
 
-        images = callPackage ./images { };
+        imageDefinitions = callPackage ./images { };
+        images = builtins.mapAttrs (key: val:
+            builtins.mapAttrs (key: val: if val ? builder then val.builder else val) val
+          ) imageDefinitions;
         image-build-check = pkgs.callPackage ./tests { inherit images; };
       in
       {
