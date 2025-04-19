@@ -86,8 +86,13 @@
 					inherit image-build-check;
 				};
 				packages = {
-					documentation = inputs'.search.packages.mkMultiSearch {
+					docs = inputs'.search.packages.mkMultiSearch {
 						title = "Custom images";
+						inherit scopes;
+					};
+					githubDocs = inputs'.search.packages.mkMultiSearch {
+						title = "Custom images";
+						baseHref = "/nix-custom-images/";
 						inherit scopes;
 					};
 				};

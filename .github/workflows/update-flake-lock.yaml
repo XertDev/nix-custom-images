@@ -3,6 +3,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: 0 12 * * *
+
+concurrency:
+  group: "lock"
+  cancel-in-progress: true
+
 jobs:
   update-lock:
     runs-on: ubuntu-latest
