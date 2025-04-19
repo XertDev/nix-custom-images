@@ -1,21 +1,11 @@
 { pkgs, lib, images, ... }:
 let
-	ignoredAttributes = [
-    "extend"
-    "override"
-    "overrideScope"
-    "overrideDerivation"
-  ];
 
-	onlyImages = builtins.mapAttrs (k: v: builtins.removeAttrs v ignoredAttributes) (builtins.removeAttrs images ignoredAttributes);
-
-	imageNames = builtins.attrNames onlyImages;
+	imageNames = builtins.attrNames images;
 	subtypeNames = builtins.listToAttrs (
 		map (val: {
 			name = val;
-			value = (builtins.attrNames (
-				builtins.removeAttrs images."${val}" ignoredAttributes
-			));
+			value = (builtins.attrNames images."${val}");
 		}) imageNames
 	);
 
@@ -25,7 +15,7 @@ let
 
 	subtypeFunctions = lib.lists.flatten (
 		map (val: (
-			lib.attrsets.mapAttrsToList (k: v: { path = [val k]; args = {}; } ) onlyImages.${val}
+			lib.attrsets.mapAttrsToList (k: v: { path = [val k]; args = {}; }) images.${val}
 		)) imageNames
 	);
 in
