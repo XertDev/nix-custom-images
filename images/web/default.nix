@@ -1,0 +1,4 @@
+{ callPackage, ... }:
+{
+	nginx = callPackage ./nginx {};
+}
