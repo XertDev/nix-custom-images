@@ -17,7 +17,7 @@ let
 		};
 
 		tryFiles = mkOption {
-			types = types.nullOr types.str;
+			type = types.nullOr types.str;
 			default = null;
 			description = ''
 				Sets try_files directive.
@@ -25,7 +25,7 @@ let
 		};
 
 		root = mkOption {
-			types = types.nullOr types.path;
+			type = types.nullOr types.path;
 			default = null;
 			description = ''
 				Root directory
@@ -39,6 +39,14 @@ let
 				Sets return directive
 			'';
 		};
+
+	  defaultProxySettings = mkOption {
+	    type = types.bool;
+	    default = false;
+	    description = ''
+				Add default proxy settings.
+	    '';
+	  };
 
 		extraConfig = mkOption {
 			type = types.lines;
@@ -99,13 +107,13 @@ let
 		package = mkPackageOption pkgs "nginx" {};
 
 	  uid = mkOption {
-	    default = 1000;
 	    type = types.int;
+	    default = 1000;
 	    description = "UID for nginx";
 	  };
 	  gid = mkOption {
-	    default = 1000;
 	    type = types.int;
+	    default = 1000;
 	    description = "GID for nginx";
 	  };
 
@@ -138,6 +146,18 @@ in
 		image = { config, ... }: let
 			UIDGID = "${toString config.uid}:${toString config.gid}";
 
+			defaultProxyConfig = pkgs.writeText "default-proxy-config.conf" ''
+        proxy_set_header Host $host;
+        proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Uri $request_uri;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        proxy_redirect http:// $scheme://;
+      '';
+
 			vhostConfig = lib.strings.concatStringsSep "\n" (lib.attrsets.mapAttrsToList (name: vhost: let
 				defaultSSLPort = 443;
         defaultHTTPPort = 80;
@@ -160,6 +180,8 @@ in
             ${lib.strings.optionalString (location.root != null) "root ${location.root};"}
             ${lib.strings.optionalString (location.return != null) "return ${toString location.return};"}
 
+						${lib.strings.optionalString (location.proxyPass != null && location.defaultProxySettings) "include ${defaultProxyConfig};"}
+
             ${location.extraConfig}
           }
         '') vhost.locations);
@@ -171,7 +193,7 @@ in
 
         mkListenLine = { addr, port, ssl }:
           "listen ${addr}:${builtins.toString port}"
-          + lib.strings.optionalString ssl "ssl"
+          + lib.strings.optionalString ssl " ssl"
           + ";";
         listenConfig = lib.strings.concatMapStringsSep "\n" mkListenLine listen;
 			in ''
