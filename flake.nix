@@ -10,6 +10,12 @@
 			};
 		};
     flake-utils.url = "github:numtide/flake-utils";
+		git-hooks-nix = {
+			url = "github:cachix/git-hooks.nix";
+			inputs = {
+				nixpkgs.follows = "nixpkgs";
+			};
+		};
 
 		nix-snapshotter = {
 			url = "github:pdtpartners/nix-snapshotter";
@@ -28,6 +34,8 @@
 	outputs = inputs@{ nixpkgs, flake-parts, ... }:
 		flake-parts.lib.mkFlake { inherit inputs; }	{
 			imports = [
+        inputs.git-hooks-nix.flakeModule
+
 				./flake-modules
 			];
 
@@ -35,7 +43,7 @@
 				"x86_64-linux"
 			];
 
-			perSystem = { inputs', system, pkgs, lib, ... }:
+			perSystem = { config, inputs', system, pkgs, lib, ... }:
 			let
         internal = import ./internal { inherit lib; inherit pkgs; };
         inherit (internal) mkImage;
@@ -81,6 +89,16 @@
 				);
       in
       {
+        pre-commit.settings.hooks = {
+          deadnix.enable = true;
+          nixfmt-classic.enable = true;
+        };
+        devShells.default = pkgs.mkShell {
+          shellHook = ''
+	          ${config.pre-commit.installationScript}
+          '';
+        };
+
 				inherit images;
 				checks = {
 					inherit image-build-check;
