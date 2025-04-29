@@ -58,6 +58,36 @@ let
 	};
 
 	virtualHostOptions = with lib; {
+		listenPorts = mkOption {
+			type = types.listOf (types.submodule {
+				options = {
+					port = mkOption {
+						type = types.port;
+						description = ''
+							Port to listen on
+						'';
+					};
+					ssl = mkOption {
+						type = types.bool;
+						default = false;
+						description = ''
+							Use SSL for this port.
+						'';
+					};
+				};
+			});
+			default = [];
+			# todo: add assertions
+			description = ''
+				List of ports which this vhost binds to.
+
+				Selecting this option will disable the default listen ports for HTTP and SSL.
+        This option is incompatible with 'addSSL' and 'onlySSL'.
+
+				If you want to activate 'ssl' to true, you will need to set 'sslCertificate' and 'sslCertificateKey'.
+			'';
+		};
+
 		serverAliases = mkOption {
 			type = types.listOf types.str;
 			default = [];
@@ -163,7 +193,8 @@ in
         defaultHTTPPort = 80;
         listenAddresses = [ "0.0.0.0" "[::0]" ];
 
-        SSLenabled = vhost.addSSL || vhost.onlySSL;
+				customlistenSSL = lib.lists.any (x: x.ssl) vhost.listenPorts;
+        SSLenabled = vhost.addSSL || vhost.onlySSL || customlistenSSL;
 
         locations = lib.strings.concatStringsSep "\n" (lib.attrsets.mapAttrsToList (path: location: ''
           location ${path} {
@@ -186,10 +217,18 @@ in
           }
         '') vhost.locations);
 
-        listen = lib.optionals (!vhost.onlySSL) (
-          map (addr: { inherit addr; port = defaultHTTPPort; ssl = false; }) listenAddresses )
-        ++ lib.optionals SSLenabled (
-          map (addr: { inherit addr; port = defaultSSLPort; ssl = true; }) listenAddresses );
+        defaultListenPorts = lib.optionals (!vhost.onlySSL)
+          [{ port = defaultHTTPPort; ssl = false; }]
+        ++ lib.optionals SSLenabled
+          [{ port = defaultSSLPort; ssl = true; }];
+
+				listenPorts =
+					if vhost.listenPorts != [] then vhost.listenPorts
+					else defaultListenPorts;
+
+				listen = lib.lists.flatten (map (addr:
+					map (portDecl: portDecl // { inherit addr; }) listenPorts
+					) listenAddresses);
 
         mkListenLine = { addr, port, ssl }:
           "listen ${addr}:${builtins.toString port}"
