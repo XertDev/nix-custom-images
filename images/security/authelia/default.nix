@@ -1,104 +1,103 @@
 { pkgs, lib, mkImage, ... }:
-let
-	format = pkgs.formats.yaml { };
-in
-{
-	default = mkImage {
-		supportSnapshotter = true;
+let format = pkgs.formats.yaml { };
+in {
+  default = mkImage {
+    supportSnapshotter = true;
 
-		options = with lib; {
-			package = mkPackageOption pkgs "authelia" {};
+    options = with lib; {
+      package = mkPackageOption pkgs "authelia" { };
 
-			uid = mkOption {
-				default = 1000;
-				type = types.int;
-				description = "Uid for authelia instance";
-			};
-			gid = mkOption {
-				default = 1000;
-				type = types.int;
-				description = "Gid for authelia instance";
-			};
+      uid = mkOption {
+        default = 1000;
+        type = types.int;
+        description = ''
+          Uid for authelia instance.
+        '';
+      };
+      gid = mkOption {
+        default = 1000;
+        type = types.int;
+        description = ''
+          Gid for authelia instance.
+        '';
+      };
 
-			secrets = mkOption {
-				description = ''
-					Paths for various secrets used in authelia.
-					This attribute allows you to enable usage of secrets and to configure the location of secret files.
-				'';
+      secrets = mkOption {
+        description = ''
+          Paths for various secrets used in authelia.
+          This attribute allows you to enable usage of secrets and to configure the location of secret files.
+        '';
 
-				default = {};
-				type = types.submodule {
-					options = {
-						jwtSecretFile = mkOption {
-							type = types.nullOr types.path;
-							default = null;
-							description = ''
-								Path to JWT secret
-							'';
-						};
-						storageEncryptionKeyFile = mkOption {
-							type = types.nullOr types.path;
-							default = null;
-							description = ''
-								Path to storage encryption secret
-							'';
-						};
-						sessionSecretFile = mkOption {
-							type = types.nullOr types.path;
-							default = null;
-							description = ''
-								Path to session secret
-							'';
-						};
-						authenticationBackendLDAPPasswordFile = mkOption {
-							type = types.nullOr types.path;
-							default = null;
-							description = ''
-								Path to password file used for LDAP authentication
-							'';
-						};
-					};
-				};
-			};
-			settings = mkOption {
-				description = ''
-					Autheliad config.yml
+        default = { };
+        type = types.submodule {
+          options = {
+            jwtSecretFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = ''
+                Path to JWT secret.
+              '';
+            };
+            storageEncryptionKeyFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = ''
+                Path to storage encryption secret.
+              '';
+            };
+            sessionSecretFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = ''
+                Path to session secret.
+              '';
+            };
+            authenticationBackendLDAPPasswordFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = ''
+                Path to password file used for LDAP authentication.
+              '';
+            };
+          };
+        };
+      };
+      settings = mkOption {
+        description = ''
+          Autheliad config.yml
 
-					https://github.com/authelia/authelia/blob/master/config.template.yml
-				'';
-				default = {};
-				type = types.submodule {
-					freeformType = format.type;
-				};
-			};
-		};
+          https://github.com/authelia/authelia/blob/master/config.template.yml
+        '';
+        default = { };
+        type = types.submodule { freeformType = format.type; };
+      };
+    };
 
-		image = { config, ... }: let
-			configFile = format.generate "config.yml" config.settings;
-			secretEnvs = with lib.attrsets;
-				mapAttrsToList (k: v: "${k}=${v}")
-					(filterAttrs (_: v: v != null)
-						(mapAttrs (k: v: attrByPath [ v ] null config.secrets)
-							{
-								AUTHELIA_JWT_SECRET_FILE = "jwtSecretFile";
-								AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE = "storageEncryptionKeyFile";
-								AUTHELIA_SESSION_SECRET_FILE = "sessionSecretFile";
-								AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD_FILE = "authenticationBackendLDAPPasswordFile";
-							}
-						)
-					);
-			settingsHash = builtins.hashFile "md5" configFile;
-			secretFilesHash = builtins.hashString "md5" (lib.strings.concatStrings secretEnvs);
-			fullConfigHash = builtins.hashString "md5" "${settingsHash}${secretFilesHash}";
-		in
-		{
-			name = "authelia";
-			tag = "${config.package.version}-${fullConfigHash}";
-			config = {
-				Env = secretEnvs;
-				Cmd = [ "${config.package}/bin/authelia" "--config" configFile ];
-				User = "${toString config.uid}:${toString config.gid}";
-			};
-		};
-	};
+    image = { config, ... }:
+      let
+        configFile = format.generate "config.yml" config.settings;
+        secretEnvs = with lib.attrsets;
+          mapAttrsToList (k: v: "${k}=${v}") (filterAttrs (_: v: v != null)
+            (mapAttrs (_: v: attrByPath [ v ] null config.secrets) {
+              AUTHELIA_JWT_SECRET_FILE = "jwtSecretFile";
+              AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE = "storageEncryptionKeyFile";
+              AUTHELIA_SESSION_SECRET_FILE = "sessionSecretFile";
+              AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD_FILE =
+                "authenticationBackendLDAPPasswordFile";
+            }));
+        settingsHash = builtins.hashFile "md5" configFile;
+        secretFilesHash =
+          builtins.hashString "md5" (lib.strings.concatStrings secretEnvs);
+        fullConfigHash =
+          builtins.hashString "md5" "${settingsHash}${secretFilesHash}";
+      in {
+        name = "authelia";
+        tag = "${config.package.version}-${fullConfigHash}";
+        config = {
+          Env = secretEnvs;
+          Cmd = [ "${config.package}/bin/authelia" "--config" configFile ];
+          User = "${toString config.uid}:${toString config.gid}";
+        };
+      };
+  };
 }

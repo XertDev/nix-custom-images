@@ -1,4 +1,1 @@
-{ callPackage, ... }:
-{
-	authelia = callPackage ./authelia {};
-}
+{ callPackage, ... }: { authelia = callPackage ./authelia { }; }

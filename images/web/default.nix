@@ -1,4 +1,1 @@
-{ callPackage, ... }:
-{
-	nginx = callPackage ./nginx {};
-}
+{ callPackage, ... }: { nginx = callPackage ./nginx { }; }

@@ -1,42 +1,40 @@
 { lib, pkgs, ... }:
+let mkTypedFunction = import ./typed-function.nix { inherit lib; };
+in definition:
 let
-	mkTypedFunction = import ./typed-function.nix { inherit lib; };
-in
-definition:
-	let
-		userOptions = definition.options;
-		defaultOptions = with lib; {
-			useSnapshotter = mkOption {
-				default = false;
-				type = types.bool;
-				description = "Should image use paths directly from store";
-			};
-		};
+  userOptions = definition.options;
+  defaultOptions = with lib; {
+    useSnapshotter = mkOption {
+      default = false;
+      type = types.bool;
+      description = "Should image use paths directly from store";
+    };
+  };
 
-		functionDef = {
-			options = defaultOptions // userOptions;
-			function = { config }: {
-				resolvedImage = definition.image { inherit config; };
-				inherit (config)
-					useSnapshotter;
-			};
-		};
-	in {
-		inherit (functionDef) options;
-		builder = args:
-			let
-				evaluatedImageDefinition = mkTypedFunction functionDef args;
+  functionDef = {
+    options = defaultOptions // userOptions;
+    function = { config }: {
+      resolvedImage = definition.image { inherit config; };
+      inherit (config) useSnapshotter;
+    };
+  };
+in {
+  inherit (functionDef) options;
+  builder = args:
+    let
+      evaluatedImageDefinition = mkTypedFunction functionDef args;
 
-        supportSnapshotter = lib.attrsets.attrByPath ["supportSnapshotter"] false definition;
-        useSnapshotter = assert
-          lib.asserts.assertMsg (!evaluatedImageDefinition.useSnapshotter || supportSnapshotter)
-          "Option \"useSnapshotter\" is not supported for selected image";
-          evaluatedImageDefinition.useSnapshotter;
+      supportSnapshotter =
+        lib.attrsets.attrByPath [ "supportSnapshotter" ] false definition;
+      useSnapshotter = assert lib.asserts.assertMsg
+        (!evaluatedImageDefinition.useSnapshotter || supportSnapshotter)
+        ''Option "useSnapshotter" is not supported for selected image'';
+        evaluatedImageDefinition.useSnapshotter;
 
-        builder = if useSnapshotter
-          then pkgs.nix-snapshotter.buildImage
-          else pkgs.dockerTools.streamLayeredImage;
-			in builder (evaluatedImageDefinition.resolvedImage);
-	}
-
+      builder = if useSnapshotter then
+        pkgs.nix-snapshotter.buildImage
+      else
+        pkgs.dockerTools.streamLayeredImage;
+    in builder (evaluatedImageDefinition.resolvedImage);
+}
 

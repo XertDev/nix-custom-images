@@ -1,6 +1,1 @@
-{ inputs, ... }:
-{
-	imports = [
-    ./imageModules.nix
-  ];
-}
+{ ... }: { imports = [ ./imageModules.nix ]; }
