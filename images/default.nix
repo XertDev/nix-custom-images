@@ -4,4 +4,5 @@ let
   security = callPackage ./security { };
   web = callPackage ./web { };
   homeAutomation = callPackage ./home-automation { };
-in misc // security // homeAutomation // web
+  middleware = callPackage ./middleware { };
+in misc // security // homeAutomation // web // middleware
