@@ -1,0 +1,1 @@
+{ callPackage, ... }: { openldap = callPackage ./openldap { }; }
