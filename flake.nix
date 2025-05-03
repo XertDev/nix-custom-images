@@ -37,7 +37,7 @@
 
       systems = [ "x86_64-linux" ];
 
-      perSystem = { config, inputs', pkgs, lib, ... }:
+      perSystem = { config, inputs', pkgs, lib, system, ... }:
         let
           internal = import ./internal {
             inherit lib;
@@ -97,6 +97,72 @@
               title = "Custom images";
               baseHref = "/nix-custom-images/";
               inherit scopes;
+            };
+          };
+
+          apps = {
+            docker-size-summary = {
+              type = "app";
+              program = (pkgs.writeShellScript "" (let
+                name = "temporary";
+                tag = "analysis";
+
+                imageNames = builtins.attrNames images;
+                subtypeTasks = lib.lists.flatten (map (val:
+                  (lib.attrsets.mapAttrsToList (k: _: {
+                    name = "${val}-${k}";
+                    command = let
+                      attrsetToString = val:
+                        if builtins.isString val then
+                          ''"${val}"''
+                        else if builtins.isInt val || builtins.isFloat val then
+                          builtins.toString val
+                        else if builtins.isBool val then
+                          lib.boolToString val
+                        else if builtins.isList val then
+                          "[${
+                            lib.strings.concatMapStringsSep " "
+                            (x: attrsetToString x) val
+                          }]"
+                        else if builtins.isAttrs val then
+                          "{${
+                            lib.strings.concatStringsSep " "
+                            (lib.attrsets.mapAttrsToList
+                              (key: value: "${key} = ${attrsetToString value};")
+                              val)
+                          }}"
+                        else
+                          "null";
+
+                      args = {
+                        inherit tag;
+                        inherit name;
+                      };
+                    in ''
+                      nix build --print-out-paths --no-link --impure --expr 'with builtins.getFlake (builtins.toString ./.); images.${system}.${val}.${k} ${
+                        attrsetToString args
+                      }' 2>/dev/null
+                    '';
+                  }) images.${val})) imageNames);
+              in ''
+                ${lib.strings.concatStringsSep "\n" (map (val: ''
+                  # Build image
+                  IMAGE_STREAM=$(${val.command})
+
+                  # Load image to registry
+                  $IMAGE_STREAM 2>/dev/null | docker image load -q > /dev/null
+
+                  # Fetch size
+                  SIZE=$(docker inspect -f "{{ .Size }}" ${name}:${tag} | ${pkgs.coreutils}/bin/numfmt --to=si)
+
+                  # Cleanup
+                  docker image rm ${name}:${tag} > /dev/null
+                  nix store delete $IMAGE_STREAM > /dev/null 2>&1
+
+
+                  echo "${val.name}" - $SIZE
+                '') subtypeTasks)}
+              '')).outPath;
             };
           };
         };

@@ -16,6 +16,13 @@ let
       visible = false;
       description = "Image tag override";
     };
+
+    name = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      visible = false;
+      description = "Image name override";
+    };
   };
 
   functionDef = {
@@ -42,6 +49,8 @@ in {
       imageDefinition = evaluatedImageDefinition.resolvedImage
         // lib.attrsets.optionalAttrs (config.tag != null) {
           inherit (config) tag;
+        } // lib.attrsets.optionalAttrs (config.name != null) {
+          inherit (config) name;
         };
 
       builder = if useSnapshotter then
