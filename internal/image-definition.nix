@@ -9,13 +9,20 @@ let
       type = types.bool;
       description = "Should image use paths directly from store";
     };
+
+    tag = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      visible = false;
+      description = "Image tag override";
+    };
   };
 
   functionDef = {
     options = defaultOptions // userOptions;
     function = { config }: {
       resolvedImage = definition.image { inherit config; };
-      inherit (config) useSnapshotter;
+      inherit config;
     };
   };
 in {
@@ -23,18 +30,24 @@ in {
   builder = args:
     let
       evaluatedImageDefinition = mkTypedFunction functionDef args;
+      config = evaluatedImageDefinition.config;
 
       supportSnapshotter =
         lib.attrsets.attrByPath [ "supportSnapshotter" ] false definition;
       useSnapshotter = assert lib.asserts.assertMsg
-        (!evaluatedImageDefinition.useSnapshotter || supportSnapshotter)
+        (!config.useSnapshotter || supportSnapshotter)
         ''Option "useSnapshotter" is not supported for selected image'';
-        evaluatedImageDefinition.useSnapshotter;
+        config.useSnapshotter;
+
+      imageDefinition = evaluatedImageDefinition.resolvedImage
+        // lib.attrsets.optionalAttrs (config.tag != null) {
+          inherit (config) tag;
+        };
 
       builder = if useSnapshotter then
         pkgs.nix-snapshotter.buildImage
       else
         pkgs.dockerTools.streamLayeredImage;
-    in builder (evaluatedImageDefinition.resolvedImage);
+    in builder imageDefinition;
 }
 
