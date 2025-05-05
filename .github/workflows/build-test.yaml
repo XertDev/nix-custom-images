@@ -11,5 +11,7 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build all
         run: nix flake check --print-build-logs --show-trace --verbose
+      - name: Run tests
+        run: nix run .#test-images
       - name: Size summary
         run: nix run .#docker-size-summary
