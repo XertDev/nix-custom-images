@@ -25,6 +25,11 @@ let
     };
   };
 
+  tests = map (test: {
+    inherit (test) name config;
+    script = pkgs.writeShellScript "" test.script;
+  }) (lib.optionals (definition ? tests) definition.tests);
+
   functionDef = {
     options = defaultOptions // userOptions;
     function = { config }: {
@@ -34,6 +39,7 @@ let
   };
 in {
   inherit (functionDef) options;
+  inherit tests;
   builder = args:
     let
       evaluatedImageDefinition = mkTypedFunction functionDef args;

@@ -153,5 +153,40 @@
             [ (pkgs.lib.meta.getExe config.package) "-c" configFile ];
         };
       };
+
+    tests = [{
+      name = "Message sending and receiving";
+      config = {
+        args = {
+          listeners = [{
+            acl = [ "pattern readwrite #" ];
+            port = 1883;
+            settings.allowAnonymous = true;
+          }];
+        };
+        ports = [ "1883:1883" ];
+      };
+      script = ''
+        TMP_DIR=$(mktemp -d)
+        TEST_MSG="hello_world"
+        trap "rm -f -- $''${TMP_DIR@Q}" EXIT
+
+        ${pkgs.mosquitto}/bin/mosquitto_sub -h localhost -t "test" -C 1 > "$TMP_DIR/sub_out" &
+        SUB_PID=$!
+
+        sleep 1
+
+        ${pkgs.mosquitto}/bin/mosquitto_pub -h localhost -t "test" -m "$TEST_MSG"
+
+        wait $SUB_PID
+        RECEIVED_MSG=$(cat "$TMP_DIR/sub_out")
+
+        if [ "$RECEIVED_MSG" != "$TEST_MSG" ]; then
+          exit 1
+        fi
+
+        exit 0
+      '';
+    }];
   };
 }
