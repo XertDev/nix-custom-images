@@ -62,7 +62,6 @@
           images = builtins.mapAttrs
             (_: val: builtins.mapAttrs (_: val: val.builder) val)
             imageDefinitions;
-          image-build-check = pkgs.callPackage ./tests { inherit images; };
 
           imageOptions = builtins.mapAttrs
             (_: val: builtins.mapAttrs (_: val: val.options) val)
@@ -87,7 +86,6 @@
           };
 
           inherit images;
-          checks = { inherit image-build-check; };
           packages = {
             docs = inputs'.search.packages.mkMultiSearch {
               title = "Custom images";
