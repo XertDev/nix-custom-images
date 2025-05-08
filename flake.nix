@@ -105,7 +105,7 @@
 
             attrsetToString = val:
               if builtins.isString val then
-                ''"${val}"''
+                lib.strings.escapeNixString val
               else if builtins.isInt val || builtins.isFloat val then
                 builtins.toString val
               else if builtins.isBool val then
@@ -117,7 +117,7 @@
               else if builtins.isAttrs val then
                 "{${
                   lib.strings.concatStringsSep " " (lib.attrsets.mapAttrsToList
-                    (key: value: "${key} = ${attrsetToString value};") val)
+                    (key: value: ''"${key}" = ${attrsetToString value};'') val)
                 }}"
               else
                 "null";
@@ -218,8 +218,12 @@
                           else
                             ((++FAILED))
                             echo "Failed"
+
                             echo "  Logs:"
-                            cat "$LOG_DIR/run.log" | xargs -i echo "   {}"
+                            cat "$LOG_DIR/run.log" | xargs -0 -i echo "   {}"
+
+                            echo "  Docker logs:"
+                            docker logs ${containerName}
                           fi
 
                           # Cleanup

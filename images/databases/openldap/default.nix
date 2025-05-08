@@ -72,7 +72,8 @@
 
     image = { config, ... }:
       let
-        configDir = "/etc/openldap/slapd.d";
+        configDir = "/var/lib/openldap/slapd.d";
+        runtimeDir = "/var/lib/openldap/data";
         UIDGID = "${toString config.uid}:${toString config.gid}";
 
         valueToLdif = value:
@@ -82,47 +83,57 @@
             else
               ": ${value.base64}"
           else
-            " ${lib.replaceStrings [ "\n" ] [ "\n " ] value}";
+            "${lib.replaceStrings [ "\n" ] [ "\n " ] value}";
 
         attrsToLdif = dn:
-          { attrs, children, includes, ... }: ''
-            dn: ${dn}
+          { attrs, children, includes, ... }:
+          lib.strings.concatStringsSep "\n" ([ "" "dn: ${dn}" ] ++ (lib.flatten
+            (lib.mapAttrsToList (attr: values:
+              let
+                valuesList =
+                  if lib.isList values then values else lib.singleton values;
+              in map (value: "${attr}: ${valueToLdif value}") valuesList)
+              attrs))
+            ++ (lib.lists.optional ((builtins.length includes) != 0) "") ++ (map
+              (path: ''
+                include: file://${path}
+              '') includes)
+            ++ lib.mapAttrsToList (key: value: attrsToLdif "${key},${dn}" value)
+            children);
 
-            ${lib.concatStringSep "\n" (lib.flatten (lib.mapAttrsToList
-              (attr: values:
-                let
-                  valuesList =
-                    if lib.isList values then values else lib.singleton values;
-                in map (value: "${attr}: ${valueToLdif value}") valuesList)
-              attrs))}
+        baseSettings = {
+          attrs = {
+            objectClass = "olcGlobal";
+            cn = "config";
+          };
+          children."cn=schema".attrs = {
+            cn = "schema";
+            objectClass = "olcSchemaConfig";
+          };
+        };
 
-            ${lib.concatStringsSep "\n" (map (path: ''
-              include: file://${path}
-            '') includes)}
+        settings = lib.recursiveUpdate baseSettings config.settings;
 
-            ${lib.concatStringsSep "\n"
-            (lib.mapAttrsToList (key: value: attrsToLdif "${key},${dn}" value)
-              config.children)}
-          '';
-
-        configText = attrsToLdif "cn=config" config.settings;
+        configText = attrsToLdif "cn=config" settings;
         configHash = builtins.hashString "md5" configText;
 
         configFile = pkgs.writeText "config.ldif" configText;
 
-        initScript = pkgs.wrtieShellApplication {
+        initScript = pkgs.writeShellApplication {
           name = "openldap-entrypoint";
           text = ''
+            #Load config
+            if [ ! -e "${configDir}/cn=config.ldif" ]; then
+              ${config.package}/bin/slapadd -F "${configDir}" -bcn=config -l ${configFile}
+            fi
+
             #Test configuration
             ${config.package}/bin/slaptest -u -F "${configDir}"
 
-            #Load config
-            if [! -e "${configDir}/cn=config.ldif" ]; then
-              ${config.package}/bin/slapadd -F ${configDir} -bcn=config -l ${configFile}
-            fi
-
             #Start server
-            ${config.package}/libexec/slapd -d 0 -F "${configDir} -h ldap:///
+            ulimit -n 1000
+            echo "Starting OpenLDAP"
+            ${config.package}/libexec/slapd -d 0 -F "${configDir}" -h ldap:///
           '';
         };
       in {
@@ -131,8 +142,12 @@
 
         enableFakechroot = true;
         fakeRootCommands = ''
-          mkdir -p "${configDir}
-          chown -R "${UIDGID}" "${configDir}"
+          mkdir -p "${configDir}"
+          chown -R ${UIDGID} "${configDir}"
+
+          # To be able to start without mounts in case of non persistant run
+          mkdir -p "${runtimeDir}"
+          chown -R ${UIDGID} "${runtimeDir}"
         '';
 
         config = {
@@ -140,5 +155,79 @@
           Entrypoint = [ (pkgs.lib.meta.getExe initScript) ];
         };
       };
+
+    tests = [{
+      name = "Simple ldap configuration";
+      config = {
+        args = {
+          settings.children = {
+            "cn=schema".includes = [
+              "${pkgs.openldap}/etc/schema/core.ldif"
+              "${pkgs.openldap}/etc/schema/cosine.ldif"
+              "${pkgs.openldap}/etc/schema/inetorgperson.ldif"
+              "${pkgs.openldap}/etc/schema/nis.ldif"
+            ];
+
+            "cn=module{0}".attrs = {
+              objectClass = [ "olcModuleList" ];
+              olcModuleLoad = [ "{0}memberof" ];
+            };
+
+            "olcDatabase={1}mdb" = {
+              attrs = {
+                objectClass = [ "olcDatabaseConfig" "olcMdbConfig" ];
+                olcDatabase = "{1}mdb";
+                olcDbDirectory = "/var/lib/openldap/data";
+                olcSuffix = "dc=test,dc=local";
+
+                olcRootDN = "cn=admin,dc=test,dc=local";
+                olcRootPW = "password";
+
+                olcAccess = [
+                  ''
+                    {0}to attrs=userPassword
+                                   by self write  by anonymous auth
+                                   by * none''
+                  "{1}to * by * read"
+                ];
+              };
+            };
+          };
+        };
+        ports = [ "1389:389" ];
+      };
+      script = ''
+        LDAP_HOST=localhost
+        LDAP_PORT=1389
+        TMP_DIR=$(mktemp -d)
+
+        TIMEOUT=10
+
+        trap "rm -f -- $''${TMP_DIR@Q}" EXIT
+
+        OUT_FILE="$TMP_DIR/ldapsearch_output"
+
+        # wait for LDAP to start
+        for ((i=1; i<=TIMEOUT; i++)); do
+          if ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT; then
+            break
+          fi
+          sleep 1
+        done
+
+        ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT -b "" -s base > "$OUT_FILE"
+
+        if ! grep -q '^dn:' "$OUT_FILE"; then
+          exit 1
+        fi
+
+        ${pkgs.openldap}/bin/ldapwhoami -x -H ldap://$LDAP_HOST:$LDAP_PORT -D "cn=admin,dc=test,dc=local" -w password > "$OUT_FILE"
+
+        if [[ $? -ne 0 ]]; then
+          exit 1
+        fi
+        exit 0
+      '';
+    }];
   };
 }
