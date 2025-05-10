@@ -62,6 +62,39 @@
           '';
         };
 
+        port = mkOption {
+          type = types.port;
+          default = 1389;
+          description = ''
+            Port for ldap.
+          '';
+        };
+
+        debugLevel = mkOption {
+          type = types.listOf (types.enum [
+            "any"
+            "trace"
+            "packets"
+            "args"
+            "conns"
+            "ber"
+            "filter"
+            "config"
+            "acl"
+            "stats"
+            "stats2"
+            "shell"
+            "parse"
+            "sync"
+            "none"
+            "0"
+          ]);
+          default = [ "0" ];
+          description = ''
+            Log level
+          '';
+        };
+
         settings = mkOption {
           type = types.submodule { options = ldapAttrsOptions; };
           description = ''
@@ -115,9 +148,14 @@
         settings = lib.recursiveUpdate baseSettings config.settings;
 
         configText = attrsToLdif "cn=config" settings;
-        configHash = builtins.hashString "md5" configText;
+        configHash = builtins.hashString "md5" "${configText}-${
+            lib.strings.concatStrings config.debugLevel
+          }-${config.port}";
 
         configFile = pkgs.writeText "config.ldif" configText;
+
+        debugParams = lib.strings.concatStringsSep " "
+          (map (x: "-d ${x}") config.debugLevel);
 
         initScript = pkgs.writeShellApplication {
           name = "openldap-entrypoint";
@@ -133,7 +171,9 @@
             #Start server
             ulimit -n 1000
             echo "Starting OpenLDAP"
-            ${config.package}/libexec/slapd -d 0 -F "${configDir}" -h ldap:///
+            ${config.package}/libexec/slapd ${debugParams} -F "${configDir}" -h ldap://0.0.0.0:${
+              toString config.port
+            };
           '';
         };
       in {
@@ -194,7 +234,7 @@
             };
           };
         };
-        ports = [ "1389:389" ];
+        ports = [ "1389:1389" ];
       };
       script = ''
         LDAP_HOST=localhost
