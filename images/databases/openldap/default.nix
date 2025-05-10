@@ -148,9 +148,10 @@
         settings = lib.recursiveUpdate baseSettings config.settings;
 
         configText = attrsToLdif "cn=config" settings;
-        configHash = builtins.hashString "md5" "${configText}-${
-            lib.strings.concatStrings config.debugLevel
-          }-${config.port}";
+        configHash = builtins.hashString "md5"
+          "${configText}-${lib.strings.concatStrings config.debugLevel}-${
+            toString config.port
+          }";
 
         configFile = pkgs.writeText "config.ldif" configText;
 
