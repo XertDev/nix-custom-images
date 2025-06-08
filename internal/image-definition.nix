@@ -30,15 +30,23 @@ let
     script = pkgs.writeShellScript "" test.script;
   }) (lib.optionals (definition ? tests) definition.tests);
 
-  functionDef = {
+  optionsModule = if (builtins.isFunction userOptions) then
+    { config, ... }: {
+      options = defaultOptions // (userOptions { inherit config; });
+    }
+  else {
     options = defaultOptions // userOptions;
+  };
+
+  functionDef = {
+    inherit optionsModule;
     function = { config }: {
       resolvedImage = definition.image { inherit config; };
       inherit config;
     };
   };
 in {
-  inherit (functionDef) options;
+  inherit optionsModule;
   inherit tests;
   builder = args:
     let

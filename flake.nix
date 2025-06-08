@@ -64,14 +64,14 @@
             imageDefinitions;
 
           imageOptions = builtins.mapAttrs
-            (_: val: builtins.mapAttrs (_: val: val.options) val)
+            (_: val: builtins.mapAttrs (_: val: val.optionsModule) val)
             imageDefinitions;
 
           scopes = lib.lists.flatten (map (val:
             lib.attrsets.mapAttrsToList (k: v: {
               name = "${val}-${k}";
               optionsPrefix = "${val}.${k}";
-              modules = [{ options = v; }];
+              modules = [ v ];
               urlPrefix = "${repoUrl}/tree/master";
             }) imageOptions."${val}") (builtins.attrNames imageOptions));
         in {
