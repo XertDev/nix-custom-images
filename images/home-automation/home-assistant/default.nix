@@ -195,9 +195,16 @@ in {
             hass --config ${configDir}
           '';
         };
+
+        hashParts = [ (toString config.bind) (toString config.port) ]
+          ++ components ++ ((config.package.extraPackages or (_: [ ]))
+            config.package.python.pkgs) ++ [ configFile.outPath ]
+          ++ config.customLovelaceModules;
+        configHash =
+          builtins.hashString "md5" (lib.strings.concatStrings hashParts);
       in {
         name = "home-assistant";
-        tag = "${config.package.version}";
+        tag = "${config.package.version}-${configHash}";
 
         enableFakechroot = true;
         fakeRootCommands = ''
