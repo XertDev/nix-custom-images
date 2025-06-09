@@ -161,7 +161,6 @@
                   docker image rm ${name}:${tag} > /dev/null
                   nix store delete $IMAGE_STREAM > /dev/null 2>&1
 
-
                   echo "${val.name}" - $SIZE
                 '') subtypeTasks)}
 
