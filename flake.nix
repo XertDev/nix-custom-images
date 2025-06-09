@@ -130,10 +130,11 @@
                   (lib.attrsets.mapAttrsToList (k: _: {
                     name = "${val}-${k}";
                     command = let
-                      args = {
-                        inherit tag;
-                        inherit name;
-                      };
+                      args = imageDefinitions."${val}"."${k}".defaultBuildArgs
+                        // {
+                          inherit tag;
+                          inherit name;
+                        };
                     in ''
                       nix build --print-out-paths --no-link --impure --expr 'with builtins.getFlake (builtins.toString ./.); images.${system}.${val}.${k} ${
                         attrsetToString args

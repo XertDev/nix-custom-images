@@ -119,7 +119,7 @@
             "${lib.replaceStrings [ "\n" ] [ "\n " ] value}";
 
         attrsToLdif = dn:
-          { attrs, children, includes, ... }:
+          { attrs ? { }, children ? { }, includes ? [ ], ... }:
           lib.strings.concatStringsSep "\n" ([ "" "dn: ${dn}" ] ++ (lib.flatten
             (lib.mapAttrsToList (attr: values:
               let
@@ -196,6 +196,8 @@
           Entrypoint = [ (pkgs.lib.meta.getExe initScript) ];
         };
       };
+
+    defaultBuildArgs = { settings = { }; };
 
     tests = [{
       name = "Simple ldap configuration";

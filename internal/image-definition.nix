@@ -30,6 +30,9 @@ let
     script = pkgs.writeShellScript "" test.script;
   }) (lib.optionals (definition ? tests) definition.tests);
 
+  defaultBuildArgs = lib.optionalAttrs (definition ? defaultBuildArgs)
+    definition.defaultBuildArgs;
+
   optionsModule = if (builtins.isFunction userOptions) then
     { config, ... }: {
       options = defaultOptions // (userOptions { inherit config; });
@@ -47,7 +50,7 @@ let
   };
 in {
   inherit optionsModule;
-  inherit tests;
+  inherit tests defaultBuildArgs;
   builder = args:
     let
       evaluatedImageDefinition = mkTypedFunction functionDef args;
