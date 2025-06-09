@@ -18,8 +18,8 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update lock
         run: nix flake update
-      - name: Build all
-        run: nix flake check --print-build-logs --show-trace --verbose
+      - name: Build all and show size summary
+        run: nix run .#docker-size-summary --print-build-logs --verbose
       - name: Create Pull Request
         id: pr
         uses: peter-evans/create-pull-request@v7

@@ -142,6 +142,8 @@
                     '';
                   }) images.${val})) imageNames);
               in ''
+                declare -i FAILED=0
+
                 ${lib.strings.concatStringsSep "\n" (map (val: ''
                   # Build image
                   IMAGE_STREAM=$(${val.command})
@@ -151,6 +153,9 @@
 
                   # Fetch size
                   SIZE=$(docker inspect -f "{{ .Size }}" ${name}:${tag} | ${pkgs.coreutils}/bin/numfmt --to=si)
+                  if [[ $? -ne 0 ]]; then
+                      ((++FAILED))
+                  fi
 
                   # Cleanup
                   docker image rm ${name}:${tag} > /dev/null
@@ -159,6 +164,10 @@
 
                   echo "${val.name}" - $SIZE
                 '') subtypeTasks)}
+
+                if [[ $FAILED -ne 0 ]]; then
+                  exit 1
+                fi
               '')).outPath;
             };
 
