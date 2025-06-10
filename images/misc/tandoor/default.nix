@@ -66,6 +66,9 @@
             # Migrate DB
             tandoor-recipes migrate
 
+            #Running preStart hook
+            ${config.preStart}
+
             # Let's run
             gunicorn recipes.wsgi
           '';

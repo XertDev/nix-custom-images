@@ -57,6 +57,9 @@
               touch '${config.ledgerFile}';
             fi
 
+            #Running preStart hook
+            ${config.preStart}
+
             echo 'Starting fava'
             fava ${config.ledgerFile} --host ${config.bind} --port ${
               builtins.toString config.port

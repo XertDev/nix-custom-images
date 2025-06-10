@@ -90,12 +90,23 @@ in {
           builtins.hashString "md5" (lib.strings.concatStrings secretEnvs);
         fullConfigHash =
           builtins.hashString "md5" "${settingsHash}${secretFilesHash}";
+
+        initScript = pkgs.writeShellApplication {
+          name = "authelia-entrypoint";
+          runtimeInputs = [ config.package ];
+          text = ''
+            #Running preStart hook
+            ${config.preStart}
+
+            authelia --config "${configFile}"
+          '';
+        };
       in {
         name = "authelia";
         tag = "${config.package.version}-${fullConfigHash}";
         config = {
           Env = secretEnvs;
-          Cmd = [ "${config.package}/bin/authelia" "--config" configFile ];
+          Cmd = [ (pkgs.lib.meta.getExe initScript) ];
           User = "${toString config.uid}:${toString config.gid}";
         };
       };

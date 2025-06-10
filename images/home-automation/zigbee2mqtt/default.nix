@@ -63,6 +63,9 @@ in {
               cp --no-preserve=mode "${configFile}" "${dataDir}/configuration.yaml"
             fi
 
+            #Running preStart hook
+            ${config.preStart}
+
             # Let's start
             "zigbee2mqtt"
           '';

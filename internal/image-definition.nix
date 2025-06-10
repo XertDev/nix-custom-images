@@ -10,6 +10,13 @@ let
       description = "Should image use paths directly from store";
     };
 
+    preStart = mkOption {
+      type = with types; coercedTo (listOf str) (concatStringsSep "\n") lines;
+      default = "";
+      visible = false;
+      description = "Commands called before main application start";
+    };
+
     tag = mkOption {
       type = types.nullOr types.str;
       default = null;

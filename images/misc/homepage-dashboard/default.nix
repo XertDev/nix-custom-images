@@ -115,6 +115,17 @@ in {
         fullConfigHash = builtins.hashString "md5" configEnv;
 
         cacheDir = "/var/cache/homepage-dashboard";
+
+        initScript = pkgs.writeShellApplication {
+          name = "homepage-dashboard-entrypoint";
+          runtimeInputs = [ config.package ];
+          text = ''
+            #Running preStart hook
+            ${config.preStart}
+
+            homepage
+          '';
+        };
       in {
         name = "homepage-dashboard";
         tag = "${config.package.version}-${fullConfigHash}";
@@ -136,7 +147,7 @@ in {
 
             "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
           ];
-          Entrypoint = [ (pkgs.lib.meta.getExe config.package) ];
+          Entrypoint = [ (pkgs.lib.meta.getExe initScript) ];
           User = UIDGID;
         };
       };

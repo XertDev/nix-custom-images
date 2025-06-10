@@ -192,6 +192,9 @@ in {
                 "' sh {} ';'"
               ]) config.customComponents))}
 
+            #Running preStart hook
+            ${config.preStart}
+
             hass --config ${configDir}
           '';
         };

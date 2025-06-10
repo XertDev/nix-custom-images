@@ -169,6 +169,9 @@
             #Test configuration
             ${config.package}/bin/slaptest -u -F "${configDir}"
 
+            #Running preStart hook
+            ${config.preStart}
+
             #Start server
             ulimit -n 1000
             echo "Starting OpenLDAP"

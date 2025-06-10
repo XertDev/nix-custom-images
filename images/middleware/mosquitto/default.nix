@@ -133,6 +133,17 @@
 
         configFile = pkgs.writeText "mosquitto.conf" configText;
         configHash = builtins.hashString "md5" configText;
+
+        initScript = pkgs.writeShellApplication {
+          name = "mosquitto-entrypoint";
+          runtimeInputs = [ config.package ];
+          text = ''
+            #Running preStart hook
+            ${config.preStart}
+
+            mosquitto -c "${configFile}"
+          '';
+        };
       in {
         name = "mosquitto";
         tag = "${config.package.version}-${configHash}";
@@ -149,8 +160,7 @@
 
           WorkingDir = dataDir;
 
-          Entrypoint =
-            [ (pkgs.lib.meta.getExe config.package) "-c" configFile ];
+          Entrypoint = [ (pkgs.lib.meta.getExe initScript) ];
         };
       };
 
