@@ -2,7 +2,7 @@
   description = "Custom OCI images with internal based configuration";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs = { nixpkgs-lib.follows = "nixpkgs"; };
@@ -144,24 +144,28 @@
               in ''
                 declare -i FAILED=0
 
+                FILTER="$1"
+
                 ${lib.strings.concatStringsSep "\n" (map (val: ''
-                  # Build image
-                  IMAGE_STREAM=$(${val.command})
+                  if [[ -x "$FILTER" || "${val.name}" =~ $FILTER ]]; then
+                    # Build image
+                    IMAGE_STREAM=$(${val.command})
 
-                  # Load image to registry
-                  $IMAGE_STREAM 2>/dev/null | docker image load -q > /dev/null
+                    # Load image to registry
+                    $IMAGE_STREAM 2>/dev/null | docker image load -q > /dev/null
 
-                  # Fetch size
-                  SIZE=$(docker inspect -f "{{ .Size }}" ${name}:${tag} | ${pkgs.coreutils}/bin/numfmt --to=si)
-                  if [[ $? -ne 0 ]]; then
-                      ((++FAILED))
+                    # Fetch size
+                    SIZE=$(docker inspect -f "{{ .Size }}" ${name}:${tag} | ${pkgs.coreutils}/bin/numfmt --to=si)
+                    if [[ $? -ne 0 ]]; then
+                        ((++FAILED))
+                    fi
+
+                    # Cleanup
+                    docker image rm ${name}:${tag} > /dev/null
+                    nix store delete $IMAGE_STREAM > /dev/null 2>&1
+
+                    echo "${val.name}" - $SIZE
                   fi
-
-                  # Cleanup
-                  docker image rm ${name}:${tag} > /dev/null
-                  nix store delete $IMAGE_STREAM > /dev/null 2>&1
-
-                  echo "${val.name}" - $SIZE
                 '') subtypeTasks)}
 
                 if [[ $FAILED -ne 0 ]]; then

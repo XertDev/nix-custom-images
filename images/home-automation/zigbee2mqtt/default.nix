@@ -3,7 +3,7 @@ let format = pkgs.formats.yaml { };
 in {
   default = mkImage {
     options = with lib; {
-      package = mkPackageOption pkgs "zigbee2mqtt" { };
+      package = mkPackageOption pkgs "zigbee2mqtt_2" { };
 
       uid = mkOption {
         default = 1000;
