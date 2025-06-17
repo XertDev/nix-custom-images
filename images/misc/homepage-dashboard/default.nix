@@ -27,6 +27,21 @@ in {
           Port for web interface.
         '';
       };
+      bind = mkOption {
+        type = types.str;
+        default = "0.0.0.0";
+        description = ''
+          The address to which the service should bind.
+        '';
+      };
+
+      allowedHosts = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = ''
+          Allowed external addresses.
+        '';
+      };
 
       bookmarks = mkOption {
         type = format.type;
@@ -111,7 +126,9 @@ in {
           done
         '';
 
-        configEnv = "${toString config.port}${configDir}";
+        configEnv = "${toString config.port}${configDir}${config.bind}${
+            lib.optionalString (config.allowedHosts != null) config.allowedHosts
+          }";
         fullConfigHash = builtins.hashString "md5" configEnv;
 
         cacheDir = "/var/cache/homepage-dashboard";
@@ -144,9 +161,11 @@ in {
             "PORT=${toString config.port}"
             "LOG_TARGETS=stdout"
             "NIXPKGS_HOMEPAGE_CACHE_DIR=${cacheDir}"
+            "HOSTNAME=${config.bind}"
 
             "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-          ];
+          ] ++ (lib.optionals (config.allowedHosts != null)
+            [ "HOMEPAGE_ALLOWED_HOSTS='${config.allowedHosts}'" ]);
           Entrypoint = [ (pkgs.lib.meta.getExe initScript) ];
           User = UIDGID;
         };
