@@ -169,7 +169,7 @@ in {
 
         initScript = pkgs.writeShellApplication {
           name = "home-assistant-entrypoint";
-          runtimeInputs = [ pkgs.coreutils pkgs.findutils package ];
+          runtimeInputs = [ pkgs.coreutils pkgs.findutils pkgs.bash package ];
           text = ''
             # Let's start
 
@@ -183,6 +183,7 @@ in {
             ln -fns ${customLovelaceModulesDir} "${configDir}/www/nixos-lovelace-modules"
 
             #customComponents
+            mkdir -p '${configDir}/custom_components/'
             ${lib.strings.concatStringsSep "\n" (lib.lists.flatten (map
               (component: [
                 ""
