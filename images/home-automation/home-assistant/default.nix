@@ -169,7 +169,7 @@ in {
 
         initScript = pkgs.writeShellApplication {
           name = "home-assistant-entrypoint";
-          runtimeInputs = [ pkgs.coreutils package ];
+          runtimeInputs = [ pkgs.coreutils pkgs.findutils package ];
           text = ''
             # Let's start
 
