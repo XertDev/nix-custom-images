@@ -212,6 +212,9 @@ in {
 
         enableFakechroot = true;
         fakeRootCommands = ''
+          mkdir -p tmp
+          chown -R ${UIDGID} ./tmp
+
           mkdir -p "${configDir}"
           chown -R ${UIDGID} "${configDir}"
         '';
