@@ -109,6 +109,77 @@ in {
           };
         };
 
+        lovelaceResourcesConfig = let
+          resourceRegistryformat = pkgs.formats.json { };
+
+          indexToEntryId = index:
+            let
+              entryIdAlphabet = [
+                "0"
+                "1"
+                "2"
+                "3"
+                "4"
+                "5"
+                "6"
+                "7"
+                "8"
+                "9"
+                "A"
+                "B"
+                "C"
+                "D"
+                "E"
+                "F"
+                "G"
+                "H"
+                "J"
+                "K"
+                "M"
+                "N"
+                "P"
+                "Q"
+                "R"
+                "S"
+                "T"
+                "V"
+                "W"
+                "X"
+                "Y"
+                "Z"
+              ];
+              entryIdAlphabetLength = lib.length entryIdAlphabet;
+
+              entryIdLength = 26;
+              toEntryId' = v: following:
+                if v > 0 then
+                  (toEntryId' (v / entryIdAlphabetLength) (toString
+                    (builtins.elemAt entryIdAlphabet
+                      (lib.mod v entryIdAlphabetLength)) + following))
+                else
+                  following;
+            in lib.strings.fixedWidthString entryIdLength "0"
+            (toEntryId' index "");
+
+          data = {
+            version = 1;
+            minor_version = 1;
+            key = "lovelace_resources";
+            autogenerted = true;
+            data = {
+              items = lib.lists.imap1 (index: card: {
+                id = indexToEntryId index;
+                url = "/local/nixos-lovelace-modules/${
+                    card.entrypoint or (card.pname + ".js")
+                  }?${card.version}";
+                type = "module";
+              }) config.customLovelaceModules;
+            };
+          };
+        in pkgs.runCommandLocal "lovelace_resources" { } ''
+          cp ${resourceRegistryformat.generate "lovelace_resources" data} $out
+        '';
+
         configData = lib.attrsets.recursiveUpdate defaultConfig
           (lib.optionalAttrs (config.config != null) config.config);
         configFile = renderYAMLFile "configuration.yaml" configData;
@@ -193,6 +264,10 @@ in {
                 "' sh {} ';'"
               ]) config.customComponents))}
 
+            mkdir -p '${configDir}/.storage'
+            cp --no-preserve=mode ${lovelaceResourcesConfig} '${configDir}/.storage/lovelace_resources'
+
+
             #Running preStart hook
             ${config.preStart}
 
@@ -203,7 +278,8 @@ in {
         hashParts = [ (toString config.bind) (toString config.port) ]
           ++ components ++ ((config.package.extraPackages or (_: [ ]))
             config.package.python.pkgs) ++ [ configFile.outPath ]
-          ++ config.customLovelaceModules;
+          ++ config.customLovelaceModules
+          ++ [ (toString lovelaceResourcesConfig) ];
         configHash =
           builtins.hashString "md5" (lib.strings.concatStrings hashParts);
       in {
