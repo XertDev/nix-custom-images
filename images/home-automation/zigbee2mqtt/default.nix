@@ -35,11 +35,20 @@ in {
         '';
       };
 
-      settings = lib.mkOption {
+      settings = mkOption {
         type = format.type;
         default = { };
         description = ''
           https://www.zigbee2mqtt.io/information/configuration.html
+        '';
+      };
+
+      externalConverters = mkOption {
+        type = with types; listOf package;
+        default = [ ];
+
+        description = ''
+          List of external converters packages to be loaded.
         '';
       };
     };
@@ -50,8 +59,10 @@ in {
         configFile = format.generate "zigbee2mqtt" config.settings;
 
         configFileHash = builtins.hashFile "md5" configFile;
-        fullConfigHash = builtins.hashString "md5"
-          "${toString config.port}${config.bind}${configFileHash}";
+        fullConfigHash = builtins.hashString "md5" ''
+          ${toString config.port}${config.bind}${configFileHash}
+          ${lib.strings.concatStrings config.externalConverters}
+        '';
 
         dataDir = "/var/lib/zigbee2mqtt";
 
@@ -59,9 +70,16 @@ in {
           name = "zigbee2mqtt-entrypoint";
           runtimeInputs = [ pkgs.coreutils config.package ];
           text = ''
+            mkdir -p "${dataDir}"
             if [ ! -f '${dataDir}/configuration.yaml' ]; then
               cp --no-preserve=mode "${configFile}" "${dataDir}/configuration.yaml"
             fi
+
+            rm -rf "${dataDir}/external_converters/"
+            mkdir -p "${dataDir}/external_converters"
+            ${lib.strings.concatStringsSep "\n" (map (converter:
+              "ln -fns '${converter}' '${dataDir}/external_converters/'")
+              config.externalConverters)}
 
             #Running preStart hook
             ${config.preStart}
