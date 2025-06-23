@@ -333,7 +333,7 @@ in {
           [
             (dockerTools.fakeNss.override {
               extraPasswdLines = [
-                "nginx:x:${UIDGID}:nginx web server user:/var/empty:/bin/sh"
+                "nginx:x:${UIDGID}:nginx web server user:/var/empty:/sbin/nologin"
               ];
               extraGroupLines =
                 [ "nginx:x:${toString config.gid}:nginx" "nogroup:x:65534:" ];
