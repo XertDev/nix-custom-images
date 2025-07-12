@@ -10,6 +10,9 @@
           name = "hello-entrypoint";
           runtimeInputs = [ config.package ];
           text = ''
+            #Running preConfig hook
+            ${config.preConfig}
+
             #Running preStart hook
             ${config.preStart}
 

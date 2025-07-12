@@ -316,6 +316,9 @@ in {
         initScript = pkgs.writeShellApplication {
           name = "nginx-entrypoint";
           text = ''
+            #Running preConfig hook
+            ${config.preConfig}
+
             #Running preStart hook
             ${config.preStart}
 

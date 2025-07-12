@@ -17,6 +17,13 @@ let
       description = "Commands called before main application start";
     };
 
+    preConfig = mkOption {
+      type = with types; coercedTo (listOf str) (concatStringsSep "\n") lines;
+      default = "";
+      visible = false;
+      description = "Commands called before configuration stage";
+    };
+
     tag = mkOption {
       type = types.nullOr types.str;
       default = null;

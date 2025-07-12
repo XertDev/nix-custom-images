@@ -101,6 +101,12 @@
             OpenLDAP configuration.
           '';
         };
+
+        printConfig = mkOption {
+          type = types.bool;
+          default = false;
+          internal = true;
+        };
       };
 
     image = { config, ... }:
@@ -116,7 +122,7 @@
             else
               ": ${value.base64}"
           else
-            "${lib.replaceStrings [ "\n" ] [ "\n " ] value}";
+            " ${lib.replaceStrings [ "\n" ] [ "\n " ] value}";
 
         attrsToLdif = dn:
           { attrs ? { }, children ? { }, includes ? [ ], ... }:
@@ -125,8 +131,7 @@
               let
                 valuesList =
                   if lib.isList values then values else lib.singleton values;
-              in map (value: "${attr}: ${valueToLdif value}") valuesList)
-              attrs))
+              in map (value: "${attr}:${valueToLdif value}") valuesList) attrs))
             ++ (lib.lists.optional ((builtins.length includes) != 0) "") ++ (map
               (path: ''
                 include: file://${path}
@@ -161,7 +166,14 @@
         initScript = pkgs.writeShellApplication {
           name = "openldap-entrypoint";
           text = ''
+            #Running preConfig hook
+            ${config.preConfig}
+
             #Load config
+            ${lib.strings.optionalString config.printConfig ''
+              ${pkgs.coreutils}/bin/cat ${configFile}
+            ''}
+
             if [ ! -e "${configDir}/cn=config.ldif" ]; then
               ${config.package}/bin/slapadd -F "${configDir}" -bcn=config -l ${configFile}
             fi
@@ -202,78 +214,158 @@
 
     defaultBuildArgs = { settings = { }; };
 
-    tests = [{
-      name = "Simple ldap configuration";
-      config = {
-        args = {
-          settings.children = {
-            "cn=schema".includes = [
-              "${pkgs.openldap}/etc/schema/core.ldif"
-              "${pkgs.openldap}/etc/schema/cosine.ldif"
-              "${pkgs.openldap}/etc/schema/inetorgperson.ldif"
-              "${pkgs.openldap}/etc/schema/nis.ldif"
-            ];
+    tests = [
+      {
+        name = "Simple ldap configuration";
+        config = {
+          args = {
+            settings.children = {
+              "cn=schema".includes = [
+                "${pkgs.openldap}/etc/schema/core.ldif"
+                "${pkgs.openldap}/etc/schema/cosine.ldif"
+                "${pkgs.openldap}/etc/schema/inetorgperson.ldif"
+                "${pkgs.openldap}/etc/schema/nis.ldif"
+              ];
 
-            "cn=module{0}".attrs = {
-              objectClass = [ "olcModuleList" ];
-              olcModuleLoad = [ "{0}memberof" ];
-            };
+              "cn=module{0}".attrs = {
+                objectClass = [ "olcModuleList" ];
+                olcModuleLoad = [ "{0}memberof" ];
+              };
 
-            "olcDatabase={1}mdb" = {
-              attrs = {
-                objectClass = [ "olcDatabaseConfig" "olcMdbConfig" ];
-                olcDatabase = "{1}mdb";
-                olcDbDirectory = "/var/lib/openldap/data";
-                olcSuffix = "dc=test,dc=local";
+              "olcDatabase={1}mdb" = {
+                attrs = {
+                  objectClass = [ "olcDatabaseConfig" "olcMdbConfig" ];
+                  olcDatabase = "{1}mdb";
+                  olcDbDirectory = "/var/lib/openldap/data";
+                  olcSuffix = "dc=test,dc=local";
 
-                olcRootDN = "cn=admin,dc=test,dc=local";
-                olcRootPW = "password";
+                  olcRootDN = "cn=admin,dc=test,dc=local";
+                  olcRootPW = "password";
 
-                olcAccess = [
-                  ''
-                    {0}to attrs=userPassword
-                                   by self write  by anonymous auth
-                                   by * none''
-                  "{1}to * by * read"
-                ];
+                  olcAccess = [
+                    ''
+                      {0}to attrs=userPassword
+                                     by self write  by anonymous auth
+                                     by * none''
+                    "{1}to * by * read"
+                  ];
+                };
               };
             };
           };
+          ports = [ "1389:1389" ];
         };
-        ports = [ "1389:1389" ];
-      };
-      script = ''
-        LDAP_HOST=localhost
-        LDAP_PORT=1389
-        TMP_DIR=$(mktemp -d)
+        script = ''
+          LDAP_HOST=localhost
+          LDAP_PORT=1389
+          TMP_DIR=$(mktemp -d)
 
-        TIMEOUT=10
+          TIMEOUT=10
 
-        trap "rm -f -- $''${TMP_DIR@Q}" EXIT
+          trap "rm -f -- $''${TMP_DIR@Q}" EXIT
 
-        OUT_FILE="$TMP_DIR/ldapsearch_output"
+          OUT_FILE="$TMP_DIR/ldapsearch_output"
 
-        # wait for LDAP to start
-        for ((i=1; i<=TIMEOUT; i++)); do
-          if ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT; then
-            break
+          # wait for LDAP to start
+          for ((i=1; i<=TIMEOUT; i++)); do
+            if ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT; then
+              break
+            fi
+            sleep 1
+          done
+
+          ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT -b "" -s base > "$OUT_FILE"
+
+          if ! grep -q '^dn:' "$OUT_FILE"; then
+            exit 1
           fi
-          sleep 1
-        done
 
-        ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT -b "" -s base > "$OUT_FILE"
+          ${pkgs.openldap}/bin/ldapwhoami -x -H ldap://$LDAP_HOST:$LDAP_PORT -D "cn=admin,dc=test,dc=local" -w password > "$OUT_FILE"
 
-        if ! grep -q '^dn:' "$OUT_FILE"; then
-          exit 1
-        fi
+          if [[ $? -ne 0 ]]; then
+            exit 1
+          fi
+          exit 0
+        '';
+      }
+      {
+        name = "Password from file";
+        config = {
+          args = {
+            printConfig = true;
 
-        ${pkgs.openldap}/bin/ldapwhoami -x -H ldap://$LDAP_HOST:$LDAP_PORT -D "cn=admin,dc=test,dc=local" -w password > "$OUT_FILE"
+            preConfig = ''
+              echo -n "password" > /var/lib/openldap/data/pass
+            '';
+            settings.children = {
+              "cn=schema".includes = [
+                "${pkgs.openldap}/etc/schema/core.ldif"
+                "${pkgs.openldap}/etc/schema/cosine.ldif"
+                "${pkgs.openldap}/etc/schema/inetorgperson.ldif"
+                "${pkgs.openldap}/etc/schema/nis.ldif"
+              ];
 
-        if [[ $? -ne 0 ]]; then
-          exit 1
-        fi
-        exit 0
-      '';
-    }];
+              "cn=module{0}".attrs = {
+                objectClass = [ "olcModuleList" ];
+                olcModuleLoad = [ "{0}memberof" ];
+              };
+
+              "olcDatabase={1}mdb" = {
+                attrs = {
+                  objectClass = [ "olcDatabaseConfig" "olcMdbConfig" ];
+                  olcDatabase = "{1}mdb";
+                  olcDbDirectory = "/var/lib/openldap/data";
+                  olcSuffix = "dc=test,dc=local";
+
+                  olcRootDN = "cn=admin,dc=test,dc=local";
+                  olcRootPW.path = "/var/lib/openldap/data/pass";
+
+                  olcAccess = [
+                    ''
+                      {0}to attrs=userPassword
+                                     by self write  by anonymous auth
+                                     by * none''
+                    "{1}to * by * read"
+                  ];
+                };
+              };
+            };
+          };
+          ports = [ "1389:1389" ];
+        };
+        script = ''
+          LDAP_HOST=localhost
+          LDAP_PORT=1389
+          TMP_DIR=$(mktemp -d)
+
+          TIMEOUT=10
+
+          trap "rm -f -- $''${TMP_DIR@Q}" EXIT
+
+          OUT_FILE="$TMP_DIR/ldapsearch_output"
+
+          # wait for LDAP to start
+          for ((i=1; i<=TIMEOUT; i++)); do
+            if ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT; then
+              break
+            fi
+            sleep 1
+          done
+
+          ${pkgs.openldap}/bin/ldapsearch -x -H ldap://$LDAP_HOST:$LDAP_PORT -b "" -s base > "$OUT_FILE"
+
+          if ! grep -q '^dn:' "$OUT_FILE"; then
+            exit 1
+          fi
+
+          ${pkgs.openldap}/bin/ldapwhoami -x -H ldap://$LDAP_HOST:$LDAP_PORT -D "cn=admin,dc=test,dc=local" -w password > "$OUT_FILE"
+
+          if [[ $? -ne 0 ]]; then
+            exit 1
+          fi
+          exit 0
+        '';
+      }
+    ];
   };
 }

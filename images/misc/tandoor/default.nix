@@ -63,6 +63,9 @@
           name = "tandoor-entrypoint";
           runtimeInputs = [ pkg pkg.python.pkgs.gunicorn ];
           text = ''
+            #Running preConfig hook
+            ${config.preConfig}
+
             # Migrate DB
             tandoor-recipes migrate
 

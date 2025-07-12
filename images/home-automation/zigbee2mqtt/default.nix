@@ -70,6 +70,9 @@ in {
           name = "zigbee2mqtt-entrypoint";
           runtimeInputs = [ pkgs.coreutils config.package ];
           text = ''
+            #Running preConfig hook
+            ${config.preConfig}
+
             mkdir -p "${dataDir}"
             if [ ! -f '${dataDir}/configuration.yaml' ]; then
               cp --no-preserve=mode "${configFile}" "${dataDir}/configuration.yaml"

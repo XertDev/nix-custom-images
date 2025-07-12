@@ -242,7 +242,8 @@ in {
           name = "home-assistant-entrypoint";
           runtimeInputs = [ pkgs.coreutils pkgs.findutils pkgs.bash package ];
           text = ''
-            # Let's start
+            #Running preConfig hook
+            ${config.preConfig}
 
             mkdir -p "${configDir}"
             #configuration

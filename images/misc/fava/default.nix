@@ -49,6 +49,9 @@ in {
           name = "fava-entrypoint";
           runtimeInputs = [ pkgs.coreutils config.package ];
           text = ''
+            #Running preConfig hook
+            ${config.preConfig}
+
             if [ ! -f '${ledgerFile}' ]; then
               echo 'Creating initial ledger file: ${ledgerFile}';
               touch '${ledgerFile}';
@@ -204,6 +207,9 @@ in {
           name = "fava-entrypoint";
           runtimeInputs = [ pkgs.coreutils ];
           text = ''
+            #Running preConfig hook
+            ${config.preConfig}
+
             cp --no-preserve=mode "${defaultAccountsFile}" "${rootLedgerDir}/accounts.default.bean"
             cp --no-preserve=mode "${rootLedgerFile}" "${rootLedgerDir}/root.bean"
 

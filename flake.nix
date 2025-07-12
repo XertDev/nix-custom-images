@@ -187,62 +187,68 @@
                 declare -i FAILED=0
                 declare -i TOTAL=0
 
+                FILTER="$1"
+
                 ${lib.strings.concatStringsSep "\n" (lib.lists.flatten (map
                   (val:
                     (lib.attrsets.mapAttrsToList (k: _: ''
-                      echo "Tests for ${val}-${k}:"
-                      ${lib.strings.concatStringsSep "\n" (map (test:
-                        let
-                          containerName = "custom-images-test";
+                      if [[ -x "$FILTER" || "${val}" =~ $FILTER ]]; then
+                        echo "Tests for ${val}-${k}:"
+                        ${
+                          lib.strings.concatStringsSep "\n" (map (test:
+                            let
+                              containerName = "custom-images-test";
 
-                          args = test.config.args // {
-                            inherit tag;
-                            inherit name;
-                          };
-                          imageStream = ''
-                            nix build --print-out-paths --no-link --impure --expr 'with builtins.getFlake (builtins.toString ./.); images.${system}.${val}.${k} ${
-                              attrsetToString args
-                            }' 2>/dev/null
-                          '';
+                              args = test.config.args // {
+                                inherit tag;
+                                inherit name;
+                              };
+                              imageStream = ''
+                                nix build --print-out-paths --no-link --impure --expr 'with builtins.getFlake (builtins.toString ./.); images.${system}.${val}.${k} ${
+                                  attrsetToString args
+                                }' 2>/dev/null
+                              '';
 
-                          portsParams = lib.strings.concatStringsSep " "
-                            (map (x: "-p ${x}") test.config.ports);
-                        in ''
-                          echo -n "  Test ${test.name}: "
+                              portsParams = lib.strings.concatStringsSep " "
+                                (map (x: "-p ${x}") test.config.ports);
+                            in ''
+                              echo -n "  Test ${test.name}: "
 
-                          # Preparing iamge
-                          IMAGE_STREAM=$(${imageStream})
-                          $IMAGE_STREAM 2>/dev/null | docker image load -q > /dev/null
+                              # Preparing iamge
+                              IMAGE_STREAM=$(${imageStream})
+                              $IMAGE_STREAM 2>/dev/null | docker image load -q > /dev/null
 
-                          # Starting image
-                          # todo: collecting logs
-                          docker run -d ${portsParams} --name=${containerName} ${name}:${tag} > /dev/null
+                              # Starting image
+                              # todo: collecting logs
+                              docker run -d ${portsParams} --name=${containerName} ${name}:${tag} > /dev/null
 
-                          # Run test
+                              # Run test
 
-                          ((++TOTAL))
-                          ${test.script} > "$LOG_DIR/run.log" 2>&1
+                              ((++TOTAL))
+                              ${test.script} > "$LOG_DIR/run.log" 2>&1
 
-                          if [[ $? -eq 0 ]]; then
-                            ((++PASSED))
-                            echo "Passed"
-                          else
-                            ((++FAILED))
-                            echo "Failed"
+                              if [[ $? -eq 0 ]]; then
+                                ((++PASSED))
+                                echo "Passed"
+                              else
+                                ((++FAILED))
+                                echo "Failed"
 
-                            echo "  Logs:"
-                            cat "$LOG_DIR/run.log" | xargs -0 -i echo "   {}"
+                                echo "  Logs:"
+                                cat "$LOG_DIR/run.log" | xargs -0 -i echo "   {}"
 
-                            echo "  Docker logs:"
-                            docker logs ${containerName}
-                          fi
+                                echo "  Docker logs:"
+                                docker logs ${containerName}
+                              fi
 
-                          # Cleanup
-                          docker container stop ${containerName} > /dev/null
-                          docker container rm ${containerName} > /dev/null
-                          docker image rm ${name}:${tag} > /dev/null
-                          nix store delete $IMAGE_STREAM > /dev/null 2>&1
-                        '') imageDefinitions.${val}.${k}.tests)}
+                              # Cleanup
+                              docker container stop ${containerName} > /dev/null
+                              docker container rm ${containerName} > /dev/null
+                              docker image rm ${name}:${tag} > /dev/null
+                              nix store delete $IMAGE_STREAM > /dev/null 2>&1
+                            '') imageDefinitions.${val}.${k}.tests)
+                        }
+                      fi
                     '') images.${val})) imageNames))}
 
                 echo "==== SUMMARY ===="
