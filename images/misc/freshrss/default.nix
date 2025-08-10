@@ -114,7 +114,7 @@
             php_fastcgi unix//var/run/php-fpm.sock {
               ${
                 lib.optionalString (config.authType == "http_auth") ''
-                  env REMOTE_USER {http.request.header.Remote-User}
+                  env REMOTE_USER {http.request.header.X-Remote-User}
                 ''
               }
             }
