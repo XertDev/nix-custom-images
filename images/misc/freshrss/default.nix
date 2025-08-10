@@ -112,6 +112,11 @@
           :${toString config.port} {
             root * ${config.package}/p
             php_fastcgi unix//var/run/php-fpm.sock {
+              ${
+                lib.optionalString (config.authType == "http_auth") ''
+                  env REMOTE_USER {http.request.header.Remote-User}
+                ''
+              }
             }
             file_server
           }
