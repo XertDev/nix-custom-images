@@ -67,14 +67,6 @@ in {
                 Path to secret file OIDC HMAC.
               '';
             };
-
-            oidcIssuerPrivateKeyFile = mkOption {
-              type = types.nullOr types.path;
-              default = null;
-              description = ''
-                Path to OIDC private key.
-              '';
-            };
           };
         };
       };
@@ -86,6 +78,14 @@ in {
         '';
         default = { };
         type = types.submodule { freeformType = format.type; };
+      };
+
+      settingsFiles = mkOption {
+        type = types.listOf types.path;
+        default = [ ];
+        description = ''
+          Extra settings files to include
+        '';
       };
     };
 
@@ -100,12 +100,14 @@ in {
               AUTHELIA_SESSION_SECRET_FILE = "sessionSecretFile";
               AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD_FILE =
                 "authenticationBackendLDAPPasswordFile";
-              AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE =
-                "oidcIssuerPrivateKeyFile";
               AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE =
                 "oidcHmacSecretFile";
             }));
-        settingsHash = builtins.hashFile "md5" configFile;
+
+        configFiles = builtins.concatStringsSep ","
+          (lib.concatLists [ [ configFile ] config.settingsFiles ]);
+
+        settingsHash = builtins.hashFile "md5" configFiles;
         secretFilesHash =
           builtins.hashString "md5" (lib.strings.concatStrings secretEnvs);
         fullConfigHash =
@@ -121,7 +123,7 @@ in {
             #Running preStart hook
             ${config.preStart}
 
-            authelia --config "${configFile}"
+            authelia --config "${configFiles}"
           '';
         };
       in {
