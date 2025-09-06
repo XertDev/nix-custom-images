@@ -59,6 +59,22 @@ in {
                 Path to password file used for LDAP authentication.
               '';
             };
+
+            oidcHmacSecretFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = ''
+                Path to secret file OIDC HMAC.
+              '';
+            };
+
+            oidcIssuerPrivateKeyFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = ''
+                Path to OIDC private key.
+              '';
+            };
           };
         };
       };
@@ -84,6 +100,10 @@ in {
               AUTHELIA_SESSION_SECRET_FILE = "sessionSecretFile";
               AUTHELIA_AUTHENTICATION_BACKEND_LDAP_PASSWORD_FILE =
                 "authenticationBackendLDAPPasswordFile";
+              AUTHELIA_IDENTITY_PROVIDERS_OIDC_ISSUER_PRIVATE_KEY_FILE =
+                "oidcIssuerPrivateKeyFile";
+              AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE =
+                "oidcHmacSecretFile";
             }));
         settingsHash = builtins.hashFile "md5" configFile;
         secretFilesHash =
