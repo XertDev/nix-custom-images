@@ -80,6 +80,14 @@ in {
         type = types.submodule { freeformType = format.type; };
       };
 
+      extraSettings = mkOption {
+        description = ''
+          Extra config
+        '';
+        default = "";
+        type = types.lines;
+      };
+
       settingsFiles = mkOption {
         type = types.listOf types.path;
         default = [ ];
@@ -91,6 +99,10 @@ in {
 
     image = { config, ... }:
       let
+        extraConfigFile = pkgs.writeTextFile {
+          name = "extra-config.yaml";
+          text = config.extraSettings;
+        };
         configFile = format.generate "config.yml" config.settings;
         secretEnvs = with lib.attrsets;
           mapAttrsToList (k: v: "${k}=${v}") (filterAttrs (_: v: v != null)
@@ -104,8 +116,10 @@ in {
                 "oidcHmacSecretFile";
             }));
 
-        configFiles = builtins.concatStringsSep ","
-          (lib.concatLists [ [ configFile ] config.settingsFiles ]);
+        configFiles = builtins.concatStringsSep "," (lib.concatLists [
+          [ configFile extraConfigFile ]
+          config.settingsFiles
+        ]);
 
         settingsHash = builtins.hashFile "md5" configFiles;
         secretFilesHash =
